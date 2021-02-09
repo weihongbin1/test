@@ -1,0 +1,91 @@
+Gitee Go 流水线配置通过 `YAML` 语言来描述构建，有关 `YAML` 的语法教程可参考学习 `阮一峰` 老师的《[YAML 语言教程](https://www.ruanyifeng.com/blog/2016/07/yaml.html)》。
+
+> 特别注意：Gitee Go 的 `yaml` 配置文件对内容大小写敏感，对应节点和属性需和本文章内容保持一致。
+
+具体流水线配置文件结构参考如下：
+
+```yaml
+# Gitee Go 流水线配置样例文件
+name: gitee-go-ci                        # 流水线唯一标识
+displayName: 流水线名称                    # 流水线名字
+triggers:                                # 流水线触发器
+  push:                                  # 通过 push方式触发
+    branches:                            # 触发分支，支持正则匹配，支持多个节点描述
+      - master
+      - release
+steps:                                   # 构建步骤，
+  - step: mavenbuild@1                   # 任务类型，参考枚举，不可自定义
+    name: maven-build                    # 构建步骤唯一标识
+    displayName: Maven编译                # 构建步骤名称
+    inputs:                              # 构建步骤输入参数
+      mavenPomFile: 'pom.xml'            # pom文件位置，非必填项
+      goals: 'echo success'              # 构建脚本
+      jdkVersion: 8                      # 语言版本
+      mavenVersion: 3.0                  # 工具版本
+      uploadArtifact: true               # 是否上传制品，非必填项
+      uploadArtifactOptions:             # 上传制品相关操作，非必填项
+        artifactPath: './output'         # 制品路径，非必填项
+        artifactRepository: '制品库名称'   # 制品库名称，非必填项
+        artifactName: 'maven-output'     # 制品名，非必填项
+```
+
+# 流水线节点介绍
+
+| 节点名称 | 释义 | 备注 |
+| ------ | ------ | ----- |
+| name | 流水线唯一标识 | 可自定义，目前单个仓库下仅流水线仅支持定义一次<br>（只取定义一条流水线的第一个yaml文件） |
+| displayName | 流水线名字 | 可自定义 |
+| triggers | 流水线触发器 | 详见下方 `Trigger 构建触发器` |
+| steps | 构建步骤 | 详见下方 `Steps 构建步骤` |
+
+## Trigger 构建触发器
+
+> 配置文件的 `triggers` 节点主要用于描述和定义当前触发当前分支下流水线的事件，目前仅支持代码 `push` 事件，分支名支持正则匹配。
+
+具体举例如下：
+
+```yaml
+triggers:          # 流水线触发器
+  push:            # 通过 push方式触发
+    branches:      # 触发分支，支持正则匹配，支持多个节点描述
+      - master     # 触发流水线分支为 master 分支
+      - release    # 触发流水线分支为 release 分支
+      - feat-*     # 触发流水线分支为以 "feat-" 开头的分支
+```    
+
+## Steps 构建步骤
+
+> 配置文件的 `steps ` 节点主要用于描述和定义流水线构建的步骤。
+
+在单条流水线中，允许存在多个构建步骤（多个 `step` 节点）。在当前公测版本 `Gitee Go` 中，仅支持单个步骤，后续将逐步完善开放多步骤的能力。对单个 `step` 节点的描述定义说明如下：
+
+```yaml
+  - step: mavenbuild@1                   # 任务类型，参考值详见本文 `构建任务类型` 一节，不可自定义
+    name: maven-build                    # 构建步骤唯一标识，可自定义，必填
+    displayName: Maven编译                # 构建步骤名称，可自定义，必填
+    inputs:                              # 构建步骤输入参数
+      mavenPomFile: 'pom.xml'            # pom文件位置，非必填项，仅构建 Maven 使用
+      goals: 'echo success'              # 自定义用于构建项目的 SHELL 脚本。默认当前起始位置为Git仓库的根目录
+      jdkVersion: 8                      # 构建语言版本，对应任务类型，参考值详见本文 `构建任务类型` 一节
+      mavenVersion: 3.0                  # 构建工具版本，对应任务类型，参考值详见本文 `构建任务类型` 一节
+      uploadArtifact: true               # 构建完成后是否将构建物作为制品产出，非必填项，与下方上传参数需同时定义
+      uploadArtifactOptions:             # 构建物上传参数，非必填项，与 `uploadArtifact` 参数需同时定义
+        artifactPath: './output'         # 构建完成后要打包的构建物所在路径
+        artifactRepository: '制品库名称'   # 制品库名称，可以理解为一批构建物的集合
+        artifactName: 'maven-output'     # 构建物打包后的制品名
+```
+
+
+## 构建任务类型
+
+Gitee Go 目前已支持 Maven、Gradle、npm、Python、Ant、PHP、Golang 等语言的持续构建与集成能力。对应环境的构建类型如下：
+
+| 构建环境 | 构建类型 | 语言和工具版本 |
+| -------- | -------- | ------------------ |
+| Maven    | mavenbuild@1 | jdkVersion: 8<br>mavenVersion: 3.0 / 3.1 / 3.2 / 3.5 / 3.6 |
+| Gradle   | gradlebuild@1 | jdkVersion: 8<br>gradleVersion: 5.1 / 5.2 / 5.3 / 5.4 |
+| npm      | npmbuild@1 | nodeVersion: 10.1 / 10.15 / 10.16 / 12.7 |
+| Python   | pythonbuild@1 | pythonVersion: 2.7 / 3.7  |
+| Ant      | antbuild@1 | antVersion: 1.10.7 / 1.10.6 / 1.0.14  |
+| PHP      | phpbuild@1 | phpVersion: 7.3  |
+| Golang   | golangbuild@1 | golangVersion: 1.11 / 1.12 / 1.13 |
